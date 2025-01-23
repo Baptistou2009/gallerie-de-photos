@@ -1,0 +1,273 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Galerie Photos</title>
+    <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.14.0/Sortable.min.js"></script>
+</head>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: Arial, sans-serif;
+    padding: 20px;
+}
+
+h1[contenteditable="true"] {
+    margin-bottom: 20px;
+    padding: 10px;
+    background: #f5f5f5;
+    border-radius: 8px;
+    text-align: center;
+    cursor: text;
+}
+
+.controls {
+    background: #f5f5f5;
+    padding: 20px;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.upload-btn {
+    background: #4CAF50;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+.main-image {
+    position: relative;
+    width: 100%;
+    height: 60vh;
+    background: #eee;
+    margin-bottom: 10px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.main-image img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    transform-origin: center;
+    transition: transform 0.3s ease;
+    cursor: grab;
+}
+
+.arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(0,0,0,0.5);
+    color: white;
+    padding: 15px;
+    cursor: pointer;
+    border: none;
+    border-radius: 50%;
+    z-index: 10;
+}
+
+.arrow-left { left: 20px; }
+.arrow-right { right: 20px; }
+
+.thumbnail-container {
+    width: 100%;
+    overflow-x: auto;
+    background: white;
+    padding: 10px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.thumbnails {
+    display: flex;
+    gap: 10px;
+}
+
+.thumbnail {
+    width: 100px;
+    height: 70px;
+    border: 2px solid transparent;
+    border-radius: 4px;
+    cursor: pointer;
+    object-fit: cover;
+}
+
+.thumbnail.active {
+    border-color: #4CAF50;
+}
+
+.keyboard-shortcuts {
+    margin-top: 20px;
+    padding: 10px;
+    background: #f9f9f9;
+    border-radius: 8px;
+    font-size: 14px;
+}
+</style>
+<body>
+    <h1 contenteditable="true">Titre de la Galerie de Photos</h1>
+    <div class="controls">
+        <input type="file" id="fileInput" multiple accept="image/*" style="display: none;">
+        <button class="upload-btn" onclick="document.getElementById('fileInput').click()">
+            Ajouter des photos
+        </button>
+        <button class="upload-btn" onclick="exportGallery()">Exporter</button>
+    </div>
+    
+    <!-- Script principal -->
+    <script id="mainScript">
+    document.addEventListener('DOMContentLoaded', (event) => {
+    const mainImage = document.querySelector('.main-image');
+    const thumbnailsContainer = document.querySelector('.thumbnails');
+    const fileInput = document.getElementById('fileInput');
+    const leftArrow = document.querySelector('.arrow-left');
+    const rightArrow = document.querySelector('.arrow-right');
+    
+    let images = [];
+    let currentIndex = 0;
+
+    fileInput.addEventListener('change', function(e) {
+        const files = Array.from(e.target.files);
+        
+        files.forEach(file => {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                images.push(e.target.result);
+                if (images.length === 1) {
+                    showImage(0);
+                }
+                updateThumbnails();
+                updateArrows();
+            }
+            reader.readAsDataURL(file);
+        });
+    });
+
+    function showImage(index) {
+        mainImage.innerHTML = `<img src="${images[index]}" alt="Image ${index + 1}">`;
+        mainImage.appendChild(leftArrow);
+        mainImage.appendChild(rightArrow);
+        currentIndex = index;
+        updateThumbnails();
+        updateArrows();
+    }
+
+    function updateThumbnails() {
+        thumbnailsContainer.innerHTML = images.map((src, index) => `
+            <img src="${src}" 
+                 class="thumbnail ${index === currentIndex ? 'active' : ''}" 
+                 onclick="showImage(${index})"
+                 alt="Miniature ${index + 1}">
+        `).join('');
+    }
+
+    function updateArrows() {
+        if (images.length > 1) {
+            leftArrow.style.display = 'block';
+            rightArrow.style.display = 'block';
+        } else {
+            leftArrow.style.display = 'none';
+            rightArrow.style.display = 'none';
+        }
+    }
+
+    leftArrow.addEventListener('click', () => {
+        if (currentIndex > 0) {
+            showImage(currentIndex - 1);
+        } else {
+            showImage(images.length - 1);
+        }
+    });
+
+    rightArrow.addEventListener('click', () => {
+        if (currentIndex < images.length - 1) {
+            showImage(currentIndex + 1);
+        } else {
+            showImage(0);
+        }
+    });
+
+    document.addEventListener('keydown', function(e) {
+        if (images.length === 0) return;
+
+        if (e.key === 'ArrowLeft') {
+            if (currentIndex > 0) showImage(currentIndex - 1);
+            else showImage(images.length - 1);
+        }
+        else if (e.key === 'ArrowRight') {
+            if (currentIndex < images.length - 1) showImage(currentIndex + 1);
+            else showImage(0);
+        }
+    });
+
+    // Initialiser SortableJS sur les miniatures
+    new Sortable(thumbnailsContainer, {
+        animation: 150,
+        onEnd: function (evt) {
+            const movedItem = images.splice(evt.oldIndex, 1)[0];
+            images.splice(evt.newIndex, 0, movedItem);
+            updateThumbnails();
+            showImage(currentIndex);
+        }
+    });
+
+    // Rendre la fonction showImage accessible globalement
+    window.showImage = showImage;
+});
+    </script>
+    
+    <!-- Script d'exportation séparé -->
+    <script id="exportScript">
+    function exportGallery() {
+        const mainScript = document.getElementById('mainScript').innerHTML;
+        const exportContent = document.createElement('html');
+        exportContent.innerHTML = document.documentElement.innerHTML;
+    
+        // Nettoyer le contenu exporté
+        const controls = exportContent.querySelector('.controls');
+        if (controls) controls.remove();
+    
+        const title = exportContent.querySelector('h1');
+        if (title) title.removeAttribute('contenteditable');
+    
+        const exportScript = exportContent.querySelector('#exportScript');
+        if (exportScript) exportScript.remove();
+    
+        // Créer le fichier final
+        const finalContent = '<!DOCTYPE html>\n' + exportContent.outerHTML;
+        
+        // Créer et télécharger le fichier
+        const blob = new Blob([finalContent], { type: 'text/html' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'galerie.html';
+        link.click();
+    }
+    </script>
+
+    <div class="main-image">
+        <div class="placeholder">
+            <p>Aucune photo sélectionnée</p>
+            <p style="font-size: 0.9em; color: #999;">Cliquez sur "Ajouter des photos" pour commencer</p>
+        </div>
+        <button class="arrow arrow-left" style="display: none;">←</button>
+        <button class="arrow arrow-right" style="display: none;">→f</button>
+    </div>
+
+    <div class="thumbnail-container">
+        <div class="thumbnails"></div>
+    </div>
+
+</body>
+</html>
